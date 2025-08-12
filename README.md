@@ -30,7 +30,7 @@ cp .env.example .env
 
 ```bash
 # API 基础 URL
-EC_API_BASE_URL=https://api.easecation.net
+EC_API_BASE_URL=https://ucapi.easecation.net
 
 # 管理员 JWT Token（必需）
 EC_JWT_TOKEN=your_admin_jwt_token_here
@@ -39,7 +39,82 @@ EC_JWT_TOKEN=your_admin_jwt_token_here
 EC_API_TIMEOUT=30000
 ```
 
-### 3. 启动服务器
+### 3. MCP 客户端配置
+
+在使用此MCP服务器之前，需要在MCP客户端中添加服务器配置。以下是常见的配置示例：
+
+#### Claude Desktop 配置
+
+在 Claude Desktop 的配置文件中添加：
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "ec-usercenter": {
+      "command": "npx",
+      "args": ["ec-usercenter-mcp-server"],
+      "env": {
+        "EC_API_BASE_URL": "https://ucapi.easecation.net",
+        "EC_JWT_TOKEN": "your_admin_jwt_token_here",
+        "EC_API_TIMEOUT": "30000"
+      }
+    }
+  }
+}
+```
+
+#### 使用本地路径配置（开发环境）
+
+```json
+{
+  "mcpServers": {
+    "ec-usercenter": {
+      "command": "node",
+      "args": ["/path/to/ec-usercenter-mcp-server/src/index.js"],
+      "env": {
+        "EC_API_BASE_URL": "https://ucapi.easecation.net",
+        "EC_JWT_TOKEN": "your_admin_jwt_token_here",
+        "EC_API_TIMEOUT": "30000"
+      }
+    }
+  }
+}
+```
+
+#### 通用 MCP 客户端配置
+
+```json
+{
+  "name": "ec-usercenter",
+  "command": "npx",
+  "args": ["ec-usercenter-mcp-server"],
+  "env": {
+    "EC_API_BASE_URL": "https://ucapi.easecation.net", 
+    "EC_JWT_TOKEN": "your_admin_jwt_token_here"
+  }
+}
+```
+
+### 4. 安装和使用
+
+#### 全局安装（推荐）
+
+```bash
+npm install -g .
+```
+
+安装后可以直接使用npx命令：
+
+```bash
+npx ec-usercenter-mcp-server
+```
+
+#### 本地开发
+
+独立启动（用于调试）：
 
 ```bash
 npm start
@@ -49,6 +124,16 @@ npm start
 
 ```bash
 npm run dev
+```
+
+#### 测试npx入口
+
+确保npx入口工作正常：
+
+```bash
+# 在项目根目录下
+npm link
+npx ec-usercenter-mcp-server
 ```
 
 ## 可用工具
