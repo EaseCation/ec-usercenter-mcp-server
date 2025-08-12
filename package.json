@@ -1,0 +1,26 @@
+{
+  "name": "ec-usercenter-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for EaseCation User Center ticket system",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "easecation",
+    "ticket-system",
+    "user-center"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
