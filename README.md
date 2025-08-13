@@ -195,7 +195,7 @@ npx @boybook/ec-usercenter-mcp-server
    - 获取待处理工单进行分配
    - 参数：type ('my'|'upgrade'|'unassigned')
 
-### 玩家管理工具 (5个)
+### 玩家管理工具 (12个)
 
 7. **search_players** - 搜索玩家
    - 根据玩家名称搜索
@@ -217,13 +217,44 @@ npx @boybook/ec-usercenter-mcp-server
     - 封禁、禁言等处罚记录
     - 参数：ecid (必需)
 
+12. **get_player_chat_history** - 获取玩家聊天记录
+    - 查询指定玩家的游戏内聊天历史
+    - 参数：ecid (必需)
+    - 返回：包含聊天时间、类型、位置、消息内容等详细信息
+
+13. **get_player_info** - 获取玩家全部信息
+    - 获取指定玩家的完整信息（需要管理员权限）
+    - 参数：ecid (必需)
+
+14. **get_player_auth_history** - 获取玩家认证历史
+    - 查询玩家的认证历史记录（需要管理员权限）
+    - 参数：ecid (必需)
+
+15. **get_player_exchange_log** - 获取玩家兑换记录
+    - 查询玩家的兑换日志（需要管理员权限）
+    - 参数：ecid (必需), from (可选), to (可选)
+    - 支持时间范围查询 (YYYY-MM-DD HH:mm:ss)
+
+16. **get_player_recording_history** - 获取玩家录像历史
+    - 查询玩家的录像历史记录（需要管理员权限）
+    - 参数：ecid (必需), startTime (可选), endTime (可选)
+    - 支持日期范围查询 (YYYY-MM-DD)
+
+17. **get_player_merchandise** - 获取玩家商品数据
+    - 查询玩家的商品相关数据（需要管理员权限）
+    - 参数：ecid (必需)
+
+18. **get_player_tasks** - 获取玩家任务数据
+    - 查询玩家的任务相关数据（需要管理员权限）
+    - 参数：ecid (必需)
+
 ### 认证管理工具 (2个)
 
-12. **get_user_info** - 获取用户信息
+19. **get_user_info** - 获取用户信息
     - 当前Token对应的用户信息和权限
     - 无参数
 
-13. **check_staff_permission** - 检查管理员权限
+20. **check_staff_permission** - 检查管理员权限
     - 验证管理员权限
     - 参数：authorizer (必需)
 

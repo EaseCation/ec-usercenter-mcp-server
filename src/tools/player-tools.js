@@ -80,6 +80,134 @@ export const playerTools = [
       },
       required: ["ecid"]
     }
+  },
+
+  {
+    name: "get_player_chat_history",
+    description: "获取指定玩家的聊天历史记录（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家的ECID标识符",
+          minLength: 1
+        }
+      },
+      required: ["ecid"]
+    }
+  },
+
+  {
+    name: "get_player_info",
+    description: "获取玩家全部信息（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家ECID",
+          minLength: 1
+        }
+      },
+      required: ["ecid"]
+    }
+  },
+
+  {
+    name: "get_player_auth_history",
+    description: "获取玩家认证历史记录（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家ECID",
+          minLength: 1
+        }
+      },
+      required: ["ecid"]
+    }
+  },
+
+  {
+    name: "get_player_exchange_log",
+    description: "获取玩家兑换（购买、交易、抽奖）记录（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家ECID",
+          minLength: 1
+        },
+        from: {
+          type: "string",
+          description: "开始时间 (YYYY-MM-DD HH:mm:ss)"
+        },
+        to: {
+          type: "string",
+          description: "结束时间 (YYYY-MM-DD HH:mm:ss)"
+        }
+      },
+      required: ["ecid"]
+    }
+  },
+
+  {
+    name: "get_player_recording_history",
+    description: "获取玩家录像历史记录（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家ECID",
+          minLength: 1
+        },
+        startTime: {
+          type: "string",
+          description: "开始日期 (YYYY-MM-DD)"
+        },
+        endTime: {
+          type: "string",
+          description: "结束日期 (YYYY-MM-DD)"
+        }
+      },
+      required: ["ecid"]
+    }
+  },
+
+  {
+    name: "get_player_merchandise",
+    description: "获取玩家商品数据（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家ECID",
+          minLength: 1
+        }
+      },
+      required: ["ecid"]
+    }
+  },
+
+  {
+    name: "get_player_tasks",
+    description: "获取玩家任务数据（需要管理员权限）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ecid: {
+          type: "string",
+          description: "玩家ECID",
+          minLength: 1
+        }
+      },
+      required: ["ecid"]
+    }
   }
 ];
 
@@ -128,6 +256,69 @@ export async function handlePlayerTool(name, arguments_) {
           content: [{
             type: "text",
             text: JSON.stringify(bans, null, 2)
+          }]
+        };
+
+      case "get_player_chat_history":
+        const chatHistory = await playerAPI.getPlayerChatHistory(arguments_.ecid);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(chatHistory, null, 2)
+          }]
+        };
+
+      case "get_player_info":
+        const playerInfo = await playerAPI.getPlayerInfo(arguments_.ecid);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(playerInfo, null, 2)
+          }]
+        };
+
+      case "get_player_auth_history":
+        const authHistory = await playerAPI.getPlayerAuthHistory(arguments_.ecid);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(authHistory, null, 2)
+          }]
+        };
+
+      case "get_player_exchange_log":
+        const exchangeLog = await playerAPI.getPlayerExchangeLog(arguments_.ecid, arguments_.from, arguments_.to);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(exchangeLog, null, 2)
+          }]
+        };
+
+      case "get_player_recording_history":
+        const recordingHistory = await playerAPI.getPlayerRecordingHistory(arguments_.ecid, arguments_.startTime, arguments_.endTime);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(recordingHistory, null, 2)
+          }]
+        };
+
+      case "get_player_merchandise":
+        const merchandise = await playerAPI.getPlayerMerchandise(arguments_.ecid);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(merchandise, null, 2)
+          }]
+        };
+
+      case "get_player_tasks":
+        const tasks = await playerAPI.getPlayerTasks(arguments_.ecid);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(tasks, null, 2)
           }]
         };
 
