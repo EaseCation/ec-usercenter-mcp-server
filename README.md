@@ -1,6 +1,6 @@
 # EaseCation 用户中心 MCP Server
 
-这是一个专为工单小助手AI设计的MCP（Model Context Protocol）服务器，提供对EaseCation用户中心工单系统的只读访问能力。
+这是一个专为 EaseCation用户中心 设计的MCP（Model Context Protocol）服务器，提供对EaseCation用户中心工单系统的只读访问能力。
 
 ## 功能特性
 
@@ -50,12 +50,29 @@ EC_API_TIMEOUT=30000
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
+**方式1: 使用 npx（推荐）**
 ```json
 {
   "mcpServers": {
     "ec-usercenter": {
       "command": "npx",
-      "args": ["ec-usercenter-mcp-server"],
+      "args": ["--registry", "https://registry.npmjs.org", "@boybook/ec-usercenter-mcp-server"],
+      "env": {
+        "EC_API_BASE_URL": "https://ucapi.easecation.net",
+        "EC_JWT_TOKEN": "your_admin_jwt_token_here",
+        "EC_API_TIMEOUT": "30000"
+      }
+    }
+  }
+}
+```
+
+**方式2: 全局安装后使用**
+```json
+{
+  "mcpServers": {
+    "ec-usercenter": {
+      "command": "ec-usercenter-mcp-server",
       "env": {
         "EC_API_BASE_URL": "https://ucapi.easecation.net",
         "EC_JWT_TOKEN": "your_admin_jwt_token_here",
@@ -90,7 +107,7 @@ EC_API_TIMEOUT=30000
 {
   "name": "ec-usercenter",
   "command": "npx",
-  "args": ["ec-usercenter-mcp-server"],
+  "args": ["@boybook/ec-usercenter-mcp-server"],
   "env": {
     "EC_API_BASE_URL": "https://ucapi.easecation.net", 
     "EC_JWT_TOKEN": "your_admin_jwt_token_here"
@@ -100,16 +117,20 @@ EC_API_TIMEOUT=30000
 
 ### 4. 安装和使用
 
-#### 全局安装（推荐）
+#### 从 npm 安装（推荐）
 
 ```bash
-npm install -g .
-```
+# 方式1: 使用官方npm源安装（推荐）
+npm install -g @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
 
-安装后可以直接使用npx命令：
+# 或者直接使用 npx
+npx @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
 
-```bash
-npx ec-usercenter-mcp-server
+# 方式2: 如果使用中国镜像，需要等待同步（通常几小时内）
+npm install -g @boybook/ec-usercenter-mcp-server
+
+# 全局安装后直接使用命令
+ec-usercenter-mcp-server
 ```
 
 #### 本地开发
@@ -126,7 +147,7 @@ npm start
 npm run dev
 ```
 
-#### 测试npx入口
+#### 本地开发测试
 
 确保npx入口工作正常：
 
@@ -134,6 +155,16 @@ npm run dev
 # 在项目根目录下
 npm link
 npx ec-usercenter-mcp-server
+```
+
+#### 验证发布
+
+```bash
+# 检查包信息
+npm view @boybook/ec-usercenter-mcp-server
+
+# 直接运行（npm可能需要几分钟同步）
+npx @boybook/ec-usercenter-mcp-server
 ```
 
 ## 可用工具
@@ -211,6 +242,35 @@ npx ec-usercenter-mcp-server
 - **AB**: 媒体审核
 - **MM**: 媒体月报
 - **OT**: 其他
+
+## 故障排除
+
+### npm包安装问题
+
+如果遇到 `404 Not Found` 错误，通常是由于使用了npm镜像源且包还未同步。
+
+**解决方案：**
+
+1. **使用官方npm源**（推荐）：
+   ```bash
+   npm install -g @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
+   npx @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
+   ```
+
+2. **等待镜像同步**：中国镜像通常在几小时内同步
+
+3. **检查npm配置**：
+   ```bash
+   npm config get registry
+   # 如需临时切换到官方源
+   npm config set registry https://registry.npmjs.org
+   ```
+
+### MCP配置问题
+
+- 确保环境变量 `EC_JWT_TOKEN` 和 `EC_API_BASE_URL` 已正确设置
+- 检查Claude Desktop配置文件路径是否正确
+- 重启Claude Desktop后配置才会生效
 
 ## 错误处理
 

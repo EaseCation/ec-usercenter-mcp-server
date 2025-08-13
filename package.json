@@ -1,25 +1,46 @@
 {
-  "name": "ec-usercenter-mcp-server",
-  "version": "1.0.0",
-  "description": "MCP server for EaseCation User Center ticket system",
+  "name": "@boybook/ec-usercenter-mcp-server",
+  "version": "1.0.2",
+  "description": "MCP server for EaseCation User Center ticket system - provides read-only access to tickets and player data",
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "ec-usercenter-mcp-server": "src/index.js"
+    "@boybook/ec-usercenter-mcp-server": "src/index.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "prepublishOnly": "npm test",
+    "test": "node --test || echo 'No tests available'"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
     "easecation",
     "ticket-system",
-    "user-center"
+    "user-center",
+    "claude",
+    "ai-assistant",
+    "customer-service"
   ],
-  "author": "",
+  "author": "EaseCation Team",
   "license": "MIT",
+  "homepage": "https://github.com/easecation/ec-usercenter-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/easecation/ec-usercenter-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/easecation/ec-usercenter-mcp-server/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
