@@ -117,42 +117,6 @@ export const ticketTools = [
       },
       required: ["type"]
     }
-  },
-
-  {
-    name: "get_ticket_ai_reply",
-    description: "为指定工单生成AI回复建议",
-    inputSchema: {
-      type: "object",
-      properties: {
-        tid: {
-          type: "number",
-          description: "工单ID",
-          minimum: 1
-        },
-        prompt: {
-          type: "string",
-          description: "自定义提示词（可选）"
-        }
-      },
-      required: ["tid"]
-    }
-  },
-
-  {
-    name: "assign_ticket",
-    description: "管理员分配待处理工单",
-    inputSchema: {
-      type: "object",
-      properties: {
-        type: {
-          type: "string",
-          enum: ["my", "upgrade", "unassigned"],
-          description: "分配类型。my=我的工单, upgrade=升级工单, unassigned=未分配工单"
-        }
-      },
-      required: ["type"]
-    }
   }
 ];
 
