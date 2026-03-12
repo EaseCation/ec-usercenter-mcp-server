@@ -144,10 +144,10 @@ jobs:
         run: s plan -t "${{ inputs.template_file }}" -a default --silent
 
       - name: Deploy function
-        run: s deploy -t "${{ inputs.template_file }}" -a default -y
+        run: s deploy -t "${{ inputs.template_file }}" -a default -y --silent
 
       - name: Fetch Serverless Devs info
-        run: s info -t "${{ inputs.template_file }}" -a default -o json > fc-info.json
+        run: s info -t "${{ inputs.template_file }}" -a default -o json --silent > fc-info.json
 
       - name: Fetch function metadata from Aliyun CLI
         run: |
