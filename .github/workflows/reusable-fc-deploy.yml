@@ -129,7 +129,6 @@ jobs:
           s config add \
             --AccessKeyID "${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
             --AccessKeySecret "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
-            --region "${FC_REGION}" \
             -f \
             -a default
 
