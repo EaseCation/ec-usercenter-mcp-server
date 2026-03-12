@@ -1,0 +1,18 @@
+name: Deploy MCP To Aliyun FC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/reusable-fc-deploy.yml
+    with:
+      notify_title: 生产环境 MCP 部署
+      template_file: s.yaml
+      function_name: ec-usercenter-mcp-server
+      github_environment: production
+      ec_api_base_url: https://ucapi.easecation.net
+    secrets: inherit

@@ -1,0 +1,59 @@
+edition: 3.0.0
+name: ec-usercenter-mcp-prod
+access: default
+
+resources:
+  ec-usercenter-mcp-server:
+    component: fc3
+    props:
+      region: cn-hangzhou
+      functionName: ec-usercenter-mcp-server
+      description: EaseCation User Center MCP Server (production)
+      runtime: custom.debian10
+      code: ./
+      internetAccess: true
+      timeout: 60
+      memorySize: 512
+      instanceConcurrency: 20
+      customRuntimeConfig:
+        command:
+          - npm
+          - start
+        port: 3000
+        healthCheckConfig:
+          httpGetUrl: /healthz
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      environmentVariables:
+        NODE_ENV: production
+        PATH: /var/fc/lang/nodejs20/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin:/code:/code/bin
+        MCP_TRANSPORT: streamable-http
+        MCP_HTTP_HOST: 0.0.0.0
+        MCP_HTTP_PORT: '3000'
+        MCP_HTTP_PATH: ${env('MCP_HTTP_PATH', '/mcp')}
+        MCP_HTTP_CORS_ORIGIN: ${env('MCP_HTTP_CORS_ORIGIN', '*')}
+        MCP_HTTP_ENABLE_DNS_REBINDING_PROTECTION: ${env('MCP_HTTP_ENABLE_DNS_REBINDING_PROTECTION', 'false')}
+        MCP_HTTP_BEARER_TOKEN: ${env('MCP_HTTP_BEARER_TOKEN', '')}
+        EC_API_BASE_URL: ${env('EC_API_BASE_URL')}
+        EC_API_TIMEOUT: ${env('EC_API_TIMEOUT', '30000')}
+        EC_ENABLE_ADMIN_TOOLS: ${env('EC_ENABLE_ADMIN_TOOLS', 'false')}
+        EC_ENABLE_USER_TOOLS: ${env('EC_ENABLE_USER_TOOLS', 'false')}
+        EC_ADMIN_JWT_TOKEN: ${env('EC_ADMIN_JWT_TOKEN', '')}
+        EC_ADMIN_REFRESH_TOKEN: ${env('EC_ADMIN_REFRESH_TOKEN', '')}
+        EC_USER_JWT_TOKEN: ${env('EC_USER_JWT_TOKEN', '')}
+        EC_USER_REFRESH_TOKEN: ${env('EC_USER_REFRESH_TOKEN', '')}
+      triggers:
+        - triggerName: httpTrigger
+          triggerType: http
+          description: Streamable HTTP entry for MCP clients
+          triggerConfig:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - DELETE
+              - OPTIONS
+              - HEAD
+            disableURLInternet: false

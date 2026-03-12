@@ -1,347 +1,341 @@
-# EaseCation 用户中心 MCP Server
+# EaseCation User Center MCP Server
 
-这是一个专为 EaseCation用户中心 设计的MCP（Model Context Protocol）服务器，提供对EaseCation用户中心工单系统的只读访问能力。
+面向 `easecation-user-center` 的现代 MCP Server，基于最新的 TypeScript SDK 设计思路实现，支持：
 
-## 功能特性
+- `McpServer` 声明式工具注册
+- `structuredContent + outputSchema`
+- tool annotations（只读/副作用提示）
+- `stdio` 与 `Streamable HTTP` 双 transport
+- 管理员态 `admin_*` 工具
+- 用户态 `me_*` 工具，适合个人 agent 服务
 
-- **工单管理**：支持工单查询、详情获取、统计分析、AI回复建议等
-- **玩家管理**：支持玩家搜索、基本信息查询、工单历史、操作日志等
-- **权限管理**：支持用户信息获取和权限检查
-- **只读访问**：仅提供查询类API，不包含创建、修改工单等写操作
-- **管理员权限**：以管理员身份访问，可查看所有工单和玩家信息
+## 核心定位
 
-## 安装配置
+这个仓库不是简单把 UC 后端接口“裸转发”成 MCP。
 
-### 1. 安装依赖
+它做了三层整理：
+
+1. 把管理员态和用户态分开，避免权限语义混乱。
+2. 把返回值统一成结构化 MCP 输出，便于 agent 稳定消费。
+3. 提供几个面向 agent 的聚合工具，例如：
+   - `me_get_account_overview`
+   - `me_get_ecid_overview`
+   - `admin_get_player_snapshot`
+
+## 环境要求
+
+- Node.js 18+
+- 推荐 Node.js 22+
+
+## 安装
 
 ```bash
 npm install
 ```
 
-### 2. 配置环境变量
+## 配置
 
-复制环境变量模板并填入配置信息：
+复制环境变量模板：
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，配置以下必需参数：
+### 常用配置项
+
+- `EC_API_BASE_URL`
+  默认 `http://127.0.0.1:9000`，真实环境建议显式设置成 UC 后端域名
+- `EC_ENABLE_ADMIN_TOOLS`
+  是否启用管理员态工具
+- `EC_ENABLE_USER_TOOLS`
+  是否启用用户态工具
+- `EC_ADMIN_JWT_TOKEN`
+  管理员 access token
+- `EC_ADMIN_REFRESH_TOKEN`
+  管理员 refresh token。配置后会在 access token 失效时自动续期
+- `EC_USER_JWT_TOKEN`
+  用户 access token
+- `EC_USER_REFRESH_TOKEN`
+  用户 refresh token。配置后会在 access token 失效时自动续期
+- `MCP_TRANSPORT`
+  `stdio` 或 `streamable-http`
+- `MCP_HTTP_BEARER_TOKEN`
+  远程 `streamable-http` 入口的 Bearer Token。只要把真实 UC token 部署到云端，就应该同时配置它
+
+## 本地联调
+
+### 对接真实 UC 后端
+
+把 `.env` 改成真实环境：
+
+```dotenv
+EC_API_BASE_URL=https://ucapi.easecation.net
+EC_ENABLE_ADMIN_TOOLS=true
+EC_ENABLE_USER_TOOLS=true
+EC_ADMIN_JWT_TOKEN=your-real-admin-access-token
+EC_ADMIN_REFRESH_TOKEN=your-real-admin-refresh-token
+EC_USER_JWT_TOKEN=your-real-user-access-token
+EC_USER_REFRESH_TOKEN=your-real-user-refresh-token
+MCP_TRANSPORT=stdio
+```
+
+推荐同时配置 access token 和 refresh token。当前端 JWT 只有 5 分钟有效期时，MCP 会在遇到 `401` 或 `EPF_code=8003` 时自动调用 `/user/refresh`，刷新后重试一次原请求。
+
+## 启动
+
+### stdio 模式
 
 ```bash
-# API 基础 URL
-EC_API_BASE_URL=https://ucapi.easecation.net
-
-# 管理员 JWT Token（必需）
-EC_JWT_TOKEN=your_admin_jwt_token_here
-
-# API 超时时间（可选，默认30秒）
-EC_API_TIMEOUT=30000
+npm start
 ```
 
-### 3. MCP 客户端配置
+### Streamable HTTP 模式
 
-在使用此MCP服务器之前，需要在MCP客户端中添加服务器配置。以下是常见的配置示例：
-
-#### Claude Desktop 配置
-
-在 Claude Desktop 的配置文件中添加：
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-**方式1: 使用 npx（推荐）**
-```json
-{
-  "mcpServers": {
-    "ec-usercenter": {
-      "command": "npx",
-      "args": ["--registry", "https://registry.npmjs.org", "@boybook/ec-usercenter-mcp-server"],
-      "env": {
-        "EC_API_BASE_URL": "https://ucapi.easecation.net",
-        "EC_JWT_TOKEN": "your_admin_jwt_token_here",
-        "EC_API_TIMEOUT": "30000"
-      }
-    }
-  }
-}
+```dotenv
+MCP_TRANSPORT=streamable-http
+MCP_HTTP_HOST=127.0.0.1
+MCP_HTTP_PORT=3100
+MCP_HTTP_PATH=/mcp
+MCP_HTTP_BEARER_TOKEN=replace-with-a-random-secret
 ```
 
-**方式2: 全局安装后使用**
-```json
-{
-  "mcpServers": {
-    "ec-usercenter": {
-      "command": "ec-usercenter-mcp-server",
-      "env": {
-        "EC_API_BASE_URL": "https://ucapi.easecation.net",
-        "EC_JWT_TOKEN": "your_admin_jwt_token_here",
-        "EC_API_TIMEOUT": "30000"
-      }
-    }
-  }
-}
+```bash
+npm start
 ```
 
-#### 使用本地路径配置（开发环境）
+默认监听：
+
+```text
+http://127.0.0.1:3100/mcp
+```
+
+同时提供：
+
+- `GET /healthz`
+- `GET /`
+
+适合反向代理、函数计算健康检查和部署后探活。
+
+如果配置了 `MCP_HTTP_BEARER_TOKEN`，只有带 `Authorization: Bearer <token>` 或 `X-Mcp-Bearer-Token: <token>` 的请求才能访问 `POST /mcp`。`GET /healthz` 与 `GET /` 仍然保持开放，便于探活。
+
+## Claude Desktop 配置
 
 ```json
 {
   "mcpServers": {
     "ec-usercenter": {
       "command": "node",
-      "args": ["/path/to/ec-usercenter-mcp-server/src/index.js"],
+      "args": ["/absolute/path/to/ec-usercenter-mcp-server/src/index.js"],
       "env": {
-        "EC_API_BASE_URL": "https://ucapi.easecation.net",
-        "EC_JWT_TOKEN": "your_admin_jwt_token_here",
-        "EC_API_TIMEOUT": "30000"
+        "EC_API_BASE_URL": "http://127.0.0.1:9000",
+        "EC_ENABLE_ADMIN_TOOLS": "true",
+        "EC_ENABLE_USER_TOOLS": "true",
+        "EC_ADMIN_JWT_TOKEN": "your-admin-access-token",
+        "EC_ADMIN_REFRESH_TOKEN": "your-admin-refresh-token",
+        "EC_USER_JWT_TOKEN": "your-user-access-token",
+        "EC_USER_REFRESH_TOKEN": "your-user-refresh-token",
+        "MCP_TRANSPORT": "stdio"
       }
     }
   }
 }
 ```
 
-#### 通用 MCP 客户端配置
+## 主要工具
 
-```json
-{
-  "name": "ec-usercenter",
-  "command": "npx",
-  "args": ["@boybook/ec-usercenter-mcp-server"],
-  "env": {
-    "EC_API_BASE_URL": "https://ucapi.easecation.net", 
-    "EC_JWT_TOKEN": "your_admin_jwt_token_here"
-  }
-}
-```
+### 用户态 `me_*`
 
-### 4. 安装和使用
+- `me_get_current_user`
+- `me_list_ecids`
+- `me_get_account_overview`
+- `me_get_ecid_detail`
+- `me_get_binding_info`
+- `me_get_email_security`
+- `me_get_ticket_list`
+- `me_get_ticket_count`
+- `me_get_ticket_detail`
+- `me_get_ticket_choices`
+- `me_get_admin_recruitment_time`
+- `me_search_players`
+- `me_get_scoretop`
+- `me_get_vip_gift_status`
+- `me_get_console_player_url`
+- `me_get_year_summary`
+- `me_get_ticket_creation_context`
+- `me_get_ecid_overview`
 
-#### 从 npm 安装（推荐）
+### 管理员态 `admin_*`
 
-```bash
-# 方式1: 使用官方npm源安装（推荐）
-npm install -g @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
+- `admin_get_current_user`
+- `admin_check_staff_permission`
+- `admin_query_tickets`
+- `admin_get_ticket_detail`
+- `admin_get_ticket_count`
+- `admin_get_my_tickets`
+- `admin_get_ticket_ai_reply`
+- `admin_assign_ticket`
+- `admin_search_players`
+- `admin_get_player_basic`
+- `admin_get_player_info`
+- `admin_get_player_tickets`
+- `admin_get_player_logs`
+- `admin_get_player_bans`
+- `admin_get_player_chat_history`
+- `admin_get_player_auth_history`
+- `admin_get_player_exchange_log`
+- `admin_get_player_recording_history`
+- `admin_get_player_merchandise`
+- `admin_get_player_tasks`
+- `admin_get_player_snapshot`
 
-# 或者直接使用 npx
-npx @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
+## MCP 资源
 
-# 方式2: 如果使用中国镜像，需要等待同步（通常几小时内）
-npm install -g @boybook/ec-usercenter-mcp-server
+- `ec-usercenter://capabilities`
 
-# 全局安装后直接使用命令
-ec-usercenter-mcp-server
-```
+用于查看当前启用的模式、工具列表和后端地址。
 
-#### 本地开发
-
-独立启动（用于调试）：
-
-```bash
-npm start
-```
-
-或者开发模式（自动重启）：
-
-```bash
-npm run dev
-```
-
-#### 本地开发测试
-
-确保npx入口工作正常：
-
-```bash
-# 在项目根目录下
-npm link
-npx ec-usercenter-mcp-server
-```
-
-#### 验证发布
+## 脚本
 
 ```bash
-# 检查包信息
-npm view @boybook/ec-usercenter-mcp-server
-
-# 直接运行（npm可能需要几分钟同步）
-npx @boybook/ec-usercenter-mcp-server
+npm test
+npm run smoke
+npm run fc:plan
+npm run fc:deploy
+npm run fc:info
+npm run fc:smoke:mcp -- --url https://example.com --bearer your-shared-token
 ```
 
-## 可用工具
+`npm run smoke` 适合在你已经配置好真实 `.env` 后做快速连通性探测。
 
-### 工单管理工具 (6个)
+## 部署
 
-1. **query_tickets** - 高级工单查询
-   - 支持分页、多条件筛选
-   - 参数：page, pageSize, tid[], type[], status[], priority, initiator[], target[], advisor_uid[]
+### 目标形态
 
-2. **get_ticket_detail** - 获取工单详情
-   - 包含完整历史记录
-   - 参数：tid (必需), anonymity (可选)
+仓库内置了面向阿里云 Function Compute 3.0 的 `Streamable HTTP` 部署方案：
 
-3. **get_ticket_list** - 获取工单列表
-   - 简化版工单列表
-   - 参数：type (可选), keyword (可选)
+- `s.yaml`：生产环境
+- `s.playground.yaml`：playground 环境
 
-4. **get_ticket_count** - 获取工单统计
-   - 各类工单数量统计
-   - 参数：type (必需)
+设计上和 `easecation-user-center` 一致，走 GitHub Actions + Serverless Devs；但实现比 `user-center` 更轻，没有拆 OSS/CDN/后端三段流水线，而是单函数直发。
 
-5. **get_ticket_ai_reply** - 获取AI回复建议
-   - 为指定工单生成回复建议
-   - 参数：tid (必需), prompt (可选)
+当前 FC 模板使用 `custom.debian10`。按阿里云官方文档要求，模板已显式把 `/var/fc/lang/nodejs20/bin` 注入 `PATH`，这样实例内可以直接执行 `npm start`。
 
-6. **assign_ticket** - 分配工单
-   - 获取待处理工单进行分配
-   - 参数：type ('my'|'upgrade'|'unassigned')
+### 本机手动部署
 
-### 玩家管理工具 (12个)
+要求：
 
-7. **search_players** - 搜索玩家
-   - 根据玩家名称搜索
-   - 参数：name (必需)
+- 已安装并配置 `aliyun` CLI
+- 有可用的阿里云 AK
+- 本地 `.env` 已准备好 UC token / refresh token
 
-8. **get_player_basic** - 获取玩家基本信息
-   - 包含等级、金币、经验等
-   - 参数：ecid (必需)
+安装 Serverless Devs：
 
-9. **get_player_tickets** - 获取玩家工单历史
-   - 玩家相关的所有工单
-   - 参数：ecid (必需)
-
-10. **get_player_logs** - 获取玩家操作历史
-    - 对玩家的管理操作记录
-    - 参数：ecid (必需)
-
-11. **get_player_bans** - 获取玩家处罚历史
-    - 封禁、禁言等处罚记录
-    - 参数：ecid (必需)
-
-12. **get_player_chat_history** - 获取玩家聊天记录
-    - 查询指定玩家的游戏内聊天历史
-    - 参数：ecid (必需)
-    - 返回：包含聊天时间、类型、位置、消息内容等详细信息
-
-13. **get_player_info** - 获取玩家全部信息
-    - 获取指定玩家的完整信息（需要管理员权限）
-    - 参数：ecid (必需)
-
-14. **get_player_auth_history** - 获取玩家认证历史
-    - 查询玩家的认证历史记录（需要管理员权限）
-    - 参数：ecid (必需)
-
-15. **get_player_exchange_log** - 获取玩家兑换记录
-    - 查询玩家的兑换日志（需要管理员权限）
-    - 参数：ecid (必需), from (可选), to (可选)
-    - 支持时间范围查询 (YYYY-MM-DD HH:mm:ss)
-
-16. **get_player_recording_history** - 获取玩家录像历史
-    - 查询玩家的录像历史记录（需要管理员权限）
-    - 参数：ecid (必需), startTime (可选), endTime (可选)
-    - 支持日期范围查询 (YYYY-MM-DD)
-
-17. **get_player_merchandise** - 获取玩家商品数据
-    - 查询玩家的商品相关数据（需要管理员权限）
-    - 参数：ecid (必需)
-
-18. **get_player_tasks** - 获取玩家任务数据
-    - 查询玩家的任务相关数据（需要管理员权限）
-    - 参数：ecid (必需)
-
-### 认证管理工具 (2个)
-
-19. **get_user_info** - 获取用户信息
-    - 当前Token对应的用户信息和权限
-    - 无参数
-
-20. **check_staff_permission** - 检查管理员权限
-    - 验证管理员权限
-    - 参数：authorizer (必需)
-
-## 工单类型说明
-
-- **AG**: 误判申诉
-- **AP**: 申请
-- **RP**: 举报玩家
-- **SP**: 商品补发
-- **AW**: 微信解冻
-- **OP**: 玩法咨询
-- **JY**: 建议
-- **RS**: 举报员工
-- **MB**: 媒体绑定
-- **MA**: 媒体审核
-- **AB**: 媒体审核
-- **MM**: 媒体月报
-- **OT**: 其他
-
-## 故障排除
-
-### npm包安装问题
-
-如果遇到 `404 Not Found` 错误，通常是由于使用了npm镜像源且包还未同步。
-
-**解决方案：**
-
-1. **使用官方npm源**（推荐）：
-   ```bash
-   npm install -g @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
-   npx @boybook/ec-usercenter-mcp-server --registry https://registry.npmjs.org
-   ```
-
-2. **等待镜像同步**：中国镜像通常在几小时内同步
-
-3. **检查npm配置**：
-   ```bash
-   npm config get registry
-   # 如需临时切换到官方源
-   npm config set registry https://registry.npmjs.org
-   ```
-
-### MCP配置问题
-
-- 确保环境变量 `EC_JWT_TOKEN` 和 `EC_API_BASE_URL` 已正确设置
-- 检查Claude Desktop配置文件路径是否正确
-- 重启Claude Desktop后配置才会生效
-
-## 错误处理
-
-服务器会处理以下类型的错误：
-
-- **配置错误**: JWT Token 或 API URL 缺失
-- **API错误**: 网络请求失败、权限不足等
-- **参数验证错误**: 必需参数缺失、类型不匹配等
-
-错误信息会以标准MCP格式返回，包含详细的错误描述。
-
-## 开发说明
-
-### 项目结构
-
-```
-src/
-├── index.js                    # MCP server 入口点
-├── config.js                  # 环境变量配置管理
-├── api/
-│   ├── client.js              # HTTP API 客户端封装
-│   ├── ticket-api.js          # 工单相关 API 调用
-│   ├── player-api.js          # 玩家相关 API 调用
-│   └── auth-api.js            # 认证相关 API 调用
-├── tools/
-│   ├── ticket-tools.js        # 工单相关 MCP tools
-│   ├── player-tools.js        # 玩家相关 MCP tools
-│   └── auth-tools.js          # 认证相关 MCP tools
-└── utils/
-    ├── validators.js          # 参数验证工具
-    └── errors.js              # 错误处理工具
+```bash
+npm install -g @serverless-devs/s
 ```
 
-### 技术栈
+配置 access：
 
-- **Node.js 18+**: 运行环境
-- **@modelcontextprotocol/sdk**: MCP 服务器框架
-- **fetch API**: HTTP 请求（Node.js 原生）
-- **ES Modules**: 模块系统
+```bash
+s config add --AccessKeyID <ak> --AccessKeySecret <sk> --region cn-hangzhou -f -a default
+```
 
-## 许可证
+部署前建议先看计划：
 
-MIT License
+```bash
+npm run fc:plan
+```
+
+部署：
+
+```bash
+npm run fc:deploy
+```
+
+查看云端信息：
+
+```bash
+npm run fc:info
+aliyun fc GetFunction --region cn-hangzhou --functionName ec-usercenter-mcp-server
+aliyun fc ListTriggers --region cn-hangzhou --functionName ec-usercenter-mcp-server
+```
+
+如果只是验证 playground 模板：
+
+```bash
+npm run fc:plan:playground
+npm run fc:deploy:playground
+npm run fc:info:playground
+```
+
+如果 playground/production 部署里启用了真实 `admin_*` 或 `me_*` 工具，强烈建议同时设置 `MCP_HTTP_BEARER_TOKEN`，否则等于把带权限的 MCP 公网暴露出去。
+
+### GitHub Actions
+
+仓库新增了 3 条 workflow：
+
+- `.github/workflows/quality-check.yml`
+- `.github/workflows/deploy-fc.yml`
+- `.github/workflows/deploy-playground-fc.yml`
+
+其中生产和 playground 都复用：
+
+- `.github/workflows/reusable-fc-deploy.yml`
+
+生产环境 workflow 默认改成手动触发。和 `user-center` 不同，这个 MCP 服务会持有真实 UC token，所以不建议把 `push main` 直接绑定到生产部署。
+
+部署 workflow 会做这些事：
+
+1. `npm ci`
+2. `npm test`
+3. `s plan`
+4. `s deploy`
+5. `s info`
+6. `aliyun fc GetFunction / ListTriggers`
+7. 调用 `GET /healthz` 做远程探活
+8. 调用 MCP `resources/read` / `tools/list` 做远程协议探活
+
+### GitHub Environment / Secrets
+
+建议在 GitHub 里创建两个 Environment：
+
+- `production`
+- `playground`
+
+每个环境至少配置这些 secrets：
+
+- `ALIYUN_ACCESS_KEY_ID`
+- `ALIYUN_ACCESS_KEY_SECRET`
+- `MCP_HTTP_BEARER_TOKEN`
+- `EC_ADMIN_JWT_TOKEN` 或 `EC_ADMIN_REFRESH_TOKEN`
+- `EC_USER_JWT_TOKEN` 或 `EC_USER_REFRESH_TOKEN`
+
+可选：
+
+- `FEISHU_WEBHOOK`
+
+说明：
+
+- workflow 会根据 secrets 是否存在，自动决定是否启用 `admin_*` / `me_*` 工具
+- 只要启用了 `admin_*` 或 `me_*` 远程工具，workflow 会强制要求 `MCP_HTTP_BEARER_TOKEN`
+- 生产 workflow 默认连 `https://ucapi.easecation.net`
+- playground workflow 默认连 `http://ucapi-playground.easecation.net`
+- 不要把真实 token 写进仓库文件，只放 GitHub Environment secrets 或本地 `.env`
+
+## 设计说明
+
+- 返回结果统一为：
+  - `structuredContent`
+  - `content`
+- 读取类工具会带 `readOnlyHint`
+- `admin_assign_ticket` 明确标记为有副作用工具
+- 工具名称显式区分 `admin_*` 和 `me_*`，避免权限混淆
+
+## 后续建议
+
+如果你还要继续扩展个人 agent 能力，建议下一步优先补这几类聚合工具：
+
+- `me_get_ticket_snapshot`
+- `me_get_media_profile`
+- `me_get_security_overview`
+- `admin_get_ticket_snapshot`

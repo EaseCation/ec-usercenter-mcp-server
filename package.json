@@ -1,11 +1,12 @@
 {
   "name": "@boybook/ec-usercenter-mcp-server",
-  "version": "1.0.2",
-  "description": "MCP server for EaseCation User Center ticket system - provides read-only access to tickets and player data",
+  "version": "2.0.0",
+  "description": "Modern MCP server for EaseCation User Center with admin and user toolsets",
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "@boybook/ec-usercenter-mcp-server": "src/index.js"
+    "@boybook/ec-usercenter-mcp-server": "src/index.js",
+    "ec-usercenter-mcp-server": "src/index.js"
   },
   "publishConfig": {
     "access": "public"
@@ -18,8 +19,16 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "fc:plan": "npx -y @serverless-devs/s plan -t s.yaml -a default",
+    "fc:plan:playground": "npx -y @serverless-devs/s plan -t s.playground.yaml -a default",
+    "fc:deploy": "npx -y @serverless-devs/s deploy -t s.yaml -a default -y",
+    "fc:deploy:playground": "npx -y @serverless-devs/s deploy -t s.playground.yaml -a default -y",
+    "fc:info": "npx -y @serverless-devs/s info -t s.yaml -a default -o json",
+    "fc:info:playground": "npx -y @serverless-devs/s info -t s.playground.yaml -a default -o json",
+    "fc:smoke:mcp": "node scripts/fc-mcp-smoke.mjs",
     "prepublishOnly": "npm test",
-    "test": "node --test || echo 'No tests available'"
+    "test": "node --test",
+    "smoke": "node scripts/smoke.mjs"
   },
   "keywords": [
     "mcp",
@@ -42,7 +51,10 @@
     "url": "https://github.com/easecation/ec-usercenter-mcp-server/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "zod": "^3.25.76"
   },
   "engines": {
     "node": ">=18.0.0"

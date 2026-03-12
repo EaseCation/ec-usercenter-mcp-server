@@ -1,84 +1,59 @@
-export class ECAPIError extends Error {
-  constructor(message, status = 500, epf = null, originalError = null) {
+export class ConfigurationError extends Error {
+  constructor(message) {
     super(message);
-    this.name = 'ECAPIError';
-    this.status = status;
-    this.epf = epf;
-    this.originalError = originalError;
-  }
-
-  static fromResponse(response, data) {
-    const epf = data?.EPF || response.status;
-    let message = data?.message || `API request failed with status ${response.status}`;
-    
-    // Handle specific EPF error codes
-    switch (epf) {
-      case 400:
-        message = '请求参数错误';
-        break;
-      case 401:
-        message = '缺少Token';
-        break;
-      case 403:
-        message = 'Token无效或权限不足';
-        break;
-      case 404:
-        message = '页面不存在';
-        break;
-      case 500:
-        message = '服务器内部错误';
-        break;
-      default:
-        if (typeof data === 'string' && data.includes('NoBindingECID')) {
-          message = '用户未绑定游戏账号';
-        } else if (typeof data === 'string' && data.includes('InvalidToken')) {
-          message = 'Token无效';
-        } else if (typeof data === 'string' && data.includes('MissingToken')) {
-          message = '缺少Token';
-        } else if (typeof data === 'string' && data.includes('InsufficientTokenPermission')) {
-          message = 'Token权限不足';
-        }
-    }
-    
-    return new ECAPIError(message, response.status, epf);
+    this.name = "ConfigurationError";
   }
 }
 
-export class ValidationError extends Error {
-  constructor(message, field = null) {
+export class UserCenterAPIError extends Error {
+  constructor(message, options = {}) {
     super(message);
-    this.name = 'ValidationError';
-    this.field = field;
+    this.name = "UserCenterAPIError";
+    this.status = options.status ?? 500;
+    this.code = options.code ?? null;
+    this.endpoint = options.endpoint ?? null;
+    this.mode = options.mode ?? null;
+    this.responseData = options.responseData;
+    this.originalError = options.originalError;
   }
 }
 
-export function handleToolError(error) {
-  if (error instanceof ECAPIError) {
+export function createToolError(error) {
+  if (error instanceof UserCenterAPIError) {
+    const location = [error.mode, error.endpoint].filter(Boolean).join(" ");
+    const prefix = location ? `[${location}] ` : "";
+    const code = error.code ?? error.status;
+
     return {
       isError: true,
-      content: [{
-        type: "text",
-        text: `API错误 (EPF: ${error.epf || error.status}): ${error.message}`
-      }]
+      content: [
+        {
+          type: "text",
+          text: `${prefix}API 错误 (${code}): ${error.message}`,
+        },
+      ],
     };
   }
-  
-  if (error instanceof ValidationError) {
+
+  if (error instanceof ConfigurationError) {
     return {
       isError: true,
-      content: [{
-        type: "text",
-        text: `参数验证错误${error.field ? ` (${error.field})` : ''}: ${error.message}`
-      }]
+      content: [
+        {
+          type: "text",
+          text: `配置错误: ${error.message}`,
+        },
+      ],
     };
   }
-  
-  // Generic error
+
   return {
     isError: true,
-    content: [{
-      type: "text",
-      text: `未知错误: ${error.message}`
-    }]
+    content: [
+      {
+        type: "text",
+        text: `未知错误: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ],
   };
 }

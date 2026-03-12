@@ -1,0 +1,201 @@
+name: Reusable FC Deploy
+
+on:
+  workflow_call:
+    inputs:
+      notify_title:
+        description: Notification title prefix
+        required: true
+        type: string
+      template_file:
+        description: Serverless Devs template file
+        required: true
+        type: string
+      function_name:
+        description: Function Compute function name
+        required: true
+        type: string
+      github_environment:
+        description: GitHub Environment name
+        required: true
+        type: string
+      ec_api_base_url:
+        description: User Center API base URL
+        required: true
+        type: string
+      region:
+        description: Aliyun region
+        required: false
+        default: cn-hangzhou
+        type: string
+      http_path:
+        description: MCP HTTP path
+        required: false
+        default: /mcp
+        type: string
+      cors_origin:
+        description: CORS origin for streamable-http transport
+        required: false
+        default: '*'
+        type: string
+      api_timeout:
+        description: Upstream API timeout in milliseconds
+        required: false
+        default: '30000'
+        type: string
+      enable_dns_rebinding_protection:
+        description: Whether to enable DNS rebinding protection
+        required: false
+        default: 'false'
+        type: string
+    secrets:
+      ALIYUN_ACCESS_KEY_ID:
+        required: true
+      ALIYUN_ACCESS_KEY_SECRET:
+        required: true
+      FEISHU_WEBHOOK:
+        required: false
+      EC_ADMIN_JWT_TOKEN:
+        required: false
+      EC_ADMIN_REFRESH_TOKEN:
+        required: false
+      EC_USER_JWT_TOKEN:
+        required: false
+      EC_USER_REFRESH_TOKEN:
+        required: false
+      MCP_HTTP_BEARER_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy To FC
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.github_environment }}
+    env:
+      FC_REGION: ${{ inputs.region }}
+      EC_API_BASE_URL: ${{ inputs.ec_api_base_url }}
+      EC_API_TIMEOUT: ${{ inputs.api_timeout }}
+      MCP_HTTP_PATH: ${{ inputs.http_path }}
+      MCP_HTTP_CORS_ORIGIN: ${{ inputs.cors_origin }}
+      MCP_HTTP_ENABLE_DNS_REBINDING_PROTECTION: ${{ inputs.enable_dns_rebinding_protection }}
+      MCP_HTTP_BEARER_TOKEN: ${{ secrets.MCP_HTTP_BEARER_TOKEN }}
+      EC_ADMIN_JWT_TOKEN: ${{ secrets.EC_ADMIN_JWT_TOKEN }}
+      EC_ADMIN_REFRESH_TOKEN: ${{ secrets.EC_ADMIN_REFRESH_TOKEN }}
+      EC_USER_JWT_TOKEN: ${{ secrets.EC_USER_JWT_TOKEN }}
+      EC_USER_REFRESH_TOKEN: ${{ secrets.EC_USER_REFRESH_TOKEN }}
+      EC_ENABLE_ADMIN_TOOLS: ${{ secrets.EC_ADMIN_JWT_TOKEN != '' || secrets.EC_ADMIN_REFRESH_TOKEN != '' }}
+      EC_ENABLE_USER_TOOLS: ${{ secrets.EC_USER_JWT_TOKEN != '' || secrets.EC_USER_REFRESH_TOKEN != '' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Install Aliyun CLI
+        run: |
+          curl -fL -o /tmp/aliyun.tgz https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar -xzf /tmp/aliyun.tgz -C /tmp
+          sudo mv /tmp/aliyun /usr/local/bin
+
+      - name: Configure Aliyun CLI
+        run: |
+          aliyun configure set \
+            --mode AK \
+            --region "${FC_REGION}" \
+            --access-key-id "${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
+            --access-key-secret "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
+
+      - name: Install Serverless Devs
+        run: npm install -g @serverless-devs/s
+
+      - name: Configure Serverless Devs access
+        run: |
+          s config add \
+            --AccessKeyID "${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
+            --AccessKeySecret "${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
+            --region "${FC_REGION}" \
+            -f \
+            -a default
+
+      - name: Validate deploy inputs
+        run: |
+          : "${EC_API_BASE_URL:?缺少 ec_api_base_url}"
+          : "${MCP_HTTP_PATH:?缺少 MCP_HTTP_PATH}"
+          if [ "${EC_ENABLE_ADMIN_TOOLS}" = "true" ] || [ "${EC_ENABLE_USER_TOOLS}" = "true" ]; then
+            : "${MCP_HTTP_BEARER_TOKEN:?启用远程 MCP 工具时必须配置 MCP_HTTP_BEARER_TOKEN}"
+          fi
+
+      - name: Plan deployment
+        run: s plan -t "${{ inputs.template_file }}" -a default --silent
+
+      - name: Deploy function
+        run: s deploy -t "${{ inputs.template_file }}" -a default -y
+
+      - name: Fetch Serverless Devs info
+        run: s info -t "${{ inputs.template_file }}" -a default -o json > fc-info.json
+
+      - name: Fetch function metadata from Aliyun CLI
+        run: |
+          aliyun fc GetFunction --region "${FC_REGION}" --functionName "${{ inputs.function_name }}" > fc-function.json
+          aliyun fc ListTriggers --region "${FC_REGION}" --functionName "${{ inputs.function_name }}" > fc-triggers.json
+
+      - name: Verify deployed resources
+        run: node scripts/verify-fc-deploy.mjs fc-info.json fc-function.json fc-triggers.json
+
+      - name: Run remote health check
+        run: node scripts/fc-smoke.mjs --info fc-info.json
+
+      - name: Run remote MCP smoke check
+        run: node scripts/fc-mcp-smoke.mjs --info fc-info.json --bearer "${MCP_HTTP_BEARER_TOKEN}"
+
+      - name: Publish deployment summary
+        env:
+          NOTIFY_TITLE: ${{ inputs.notify_title }}
+          FUNCTION_NAME: ${{ inputs.function_name }}
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const info = JSON.parse(fs.readFileSync('fc-info.json', 'utf8'));
+          const url = info?.url?.system_url || 'N/A';
+          const lines = [
+            `### ${process.env.NOTIFY_TITLE}`,
+            '',
+            `- Function: \`${process.env.FUNCTION_NAME}\``,
+            `- Region: \`${process.env.FC_REGION}\``,
+            `- URL: ${url}`,
+            `- MCP Path: \`${process.env.MCP_HTTP_PATH}\``,
+            `- Bearer Auth: \`${process.env.MCP_HTTP_BEARER_TOKEN ? 'enabled' : 'disabled'}\``,
+            `- Admin Tools: \`${process.env.EC_ENABLE_ADMIN_TOOLS}\``,
+            `- User Tools: \`${process.env.EC_ENABLE_USER_TOOLS}\``,
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+          NODE
+
+      - name: Notify Success
+        if: success() && secrets.FEISHU_WEBHOOK != ''
+        run: |
+          curl -X POST "${{ secrets.FEISHU_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"[${{ inputs.notify_title }}] 成功！\n\n仓库：${{ github.repository }}\n分支：${{ github.ref_name }}\n提交：${{ github.event.head_commit.message || github.sha }}\n触发人：${{ github.actor }}\"}}"
+
+      - name: Notify Failure
+        if: failure() && secrets.FEISHU_WEBHOOK != ''
+        run: |
+          curl -X POST "${{ secrets.FEISHU_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"[${{ inputs.notify_title }}] 失败！\n\n仓库：${{ github.repository }}\n分支：${{ github.ref_name }}\n提交：${{ github.event.head_commit.message || github.sha }}\n触发人：${{ github.actor }}\"}}"

@@ -1,98 +1,53 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { config } from "./config.js";
+import { createHttpApp } from "./http-server.js";
+import { createMcpServer } from "./mcp-server.js";
+import { ConfigurationError } from "./utils/errors.js";
 
-import { config } from './config.js';
-import { ticketTools, handleTicketTool } from './tools/ticket-tools.js';
-import { playerTools, handlePlayerTool } from './tools/player-tools.js';
-import { authTools, handleAuthTool } from './tools/auth-tools.js';
+async function main() {
+  if (config.transport === "streamable-http") {
+    const app = createHttpApp({ config });
 
-class ECUserCenterMCPServer {
-  constructor() {
-    this.server = new Server(
-      {
-        name: config.serverName,
-        version: config.serverVersion,
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
+    app.listen(config.http.port, config.http.host, error => {
+      if (error) {
+      console.error("MCP HTTP 服务启动失败:", error);
+        process.exit(1);
       }
-    );
 
-    this.setupHandlers();
+      console.error(
+        `MCP Streamable HTTP 已启动: http://${config.http.host}:${config.http.port}${config.http.path}${
+          config.http.bearerToken ? " (bearer auth enabled)" : ""
+        }`
+      );
+    });
+    return;
   }
 
-  setupHandlers() {
-    // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const allTools = [
-        ...ticketTools,
-        ...playerTools,
-        ...authTools
-      ];
+  const { server } = createMcpServer({ config });
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
 
-      return {
-        tools: allTools
-      };
-    });
+  const shutdown = async () => {
+    await server.close();
+    process.exit(0);
+  };
 
-    // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      // Determine which handler to use based on tool name
-      if (ticketTools.some(tool => tool.name === name)) {
-        return await handleTicketTool(name, args || {});
-      }
-      
-      if (playerTools.some(tool => tool.name === name)) {
-        return await handlePlayerTool(name, args || {});
-      }
-      
-      if (authTools.some(tool => tool.name === name)) {
-        return await handleAuthTool(name, args || {});
-      }
-
-      // Unknown tool
-      return {
-        isError: true,
-        content: [{
-          type: "text",
-          text: `Unknown tool: ${name}`
-        }]
-      };
-    });
-  }
-
-  async run() {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-      await this.server.close();
-      process.exit(0);
-    });
-  }
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
-// Error handling for configuration
-process.on('uncaughtException', (error) => {
-  if (error.message.includes('Configuration validation failed')) {
-    console.error('配置错误:', error.message);
-    console.error('请检查环境变量设置，确保 EC_JWT_TOKEN 和 EC_API_BASE_URL 已正确配置');
-    process.exit(1);
-  }
-  throw error;
+process.on("unhandledRejection", error => {
+  console.error("未处理的 Promise 异常:", error);
 });
 
-// Start the server
-const server = new ECUserCenterMCPServer();
-server.run().catch((error) => {
-  console.error('服务器启动失败:', error);
+main().catch(error => {
+  if (error instanceof ConfigurationError) {
+    console.error("配置错误:", error.message);
+    process.exit(1);
+  }
+
+  console.error("MCP 服务启动失败:", error);
   process.exit(1);
 });

@@ -1,0 +1,12 @@
+.git/
+.github/
+.idea/
+.claude/
+coverage/
+tests/
+scripts/
+.env
+.env.*
+README.md
+s.yaml
+s.playground.yaml
