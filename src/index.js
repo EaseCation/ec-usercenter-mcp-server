@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { config } from "./config.js";
+import { getConfig } from "./config.js";
 import { createHttpApp } from "./http-server.js";
 import { createMcpServer } from "./mcp-server.js";
 import { ConfigurationError } from "./utils/errors.js";
 
 async function main() {
+  const config = getConfig();
+
   if (config.transport === "streamable-http") {
     const app = createHttpApp({ config });
 

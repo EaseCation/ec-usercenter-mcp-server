@@ -97,4 +97,6 @@ export function resolveConfig(env = process.env) {
   };
 }
 
-export const config = resolveConfig();
+export function getConfig(env = process.env) {
+  return resolveConfig(env);
+}
