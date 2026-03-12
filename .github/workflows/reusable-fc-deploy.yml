@@ -144,7 +144,7 @@ jobs:
         run: s plan -t "${{ inputs.template_file }}" -a default --silent
 
       - name: Deploy function
-        run: s deploy -t "${{ inputs.template_file }}" -a default -y --silent
+        run: s deploy -t "${{ inputs.template_file }}" -a default -y --function "${{ inputs.function_name }}" --silent
 
       - name: Fetch Serverless Devs info
         run: s info -t "${{ inputs.template_file }}" -a default -o json --silent > fc-info.json
