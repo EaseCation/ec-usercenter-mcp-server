@@ -214,7 +214,6 @@ npm run fc:smoke:mcp -- --url https://example.com --bearer your-shared-token
 仓库内置了面向阿里云 Function Compute 3.0 的 `Streamable HTTP` 部署方案：
 
 - `s.yaml`：生产环境
-- `s.playground.yaml`：playground 环境
 
 设计上和 `easecation-user-center` 一致，走 GitHub Actions + Serverless Devs；但实现比 `user-center` 更轻，没有拆 OSS/CDN/后端三段流水线，而是单函数直发。
 
@@ -260,25 +259,16 @@ aliyun fc GetFunction --region cn-hangzhou --functionName ec-usercenter-mcp-serv
 aliyun fc ListTriggers --region cn-hangzhou --functionName ec-usercenter-mcp-server
 ```
 
-如果只是验证 playground 模板：
-
-```bash
-npm run fc:plan:playground
-npm run fc:deploy:playground
-npm run fc:info:playground
-```
-
-如果 playground/production 部署里启用了真实 `admin_*` 或 `me_*` 工具，强烈建议同时设置 `MCP_HTTP_BEARER_TOKEN`，否则等于把带权限的 MCP 公网暴露出去。
+如果生产部署里启用了真实 `admin_*` 或 `me_*` 工具，强烈建议同时设置 `MCP_HTTP_BEARER_TOKEN`，否则等于把带权限的 MCP 公网暴露出去。
 
 ### GitHub Actions
 
-仓库新增了 3 条 workflow：
+仓库现在的 GitHub Actions 入口有 2 条 workflow：
 
 - `.github/workflows/quality-check.yml`
 - `.github/workflows/deploy-fc.yml`
-- `.github/workflows/deploy-playground-fc.yml`
 
-其中生产和 playground 都复用：
+其中生产部署复用：
 
 - `.github/workflows/reusable-fc-deploy.yml`
 
@@ -297,10 +287,9 @@ npm run fc:info:playground
 
 ### GitHub Environment / Secrets
 
-建议在 GitHub 里创建两个 Environment：
+建议在 GitHub 里创建一个 Environment：
 
 - `production`
-- `playground`
 
 每个环境至少配置这些 secrets：
 
@@ -319,7 +308,6 @@ npm run fc:info:playground
 - workflow 会根据 secrets 是否存在，自动决定是否启用 `admin_*` / `me_*` 工具
 - 只要启用了 `admin_*` 或 `me_*` 远程工具，workflow 会强制要求 `MCP_HTTP_BEARER_TOKEN`
 - 生产 workflow 默认连 `https://ucapi.easecation.net`
-- playground workflow 默认连 `http://ucapi-playground.easecation.net`
 - 不要把真实 token 写进仓库文件，只放 GitHub Environment secrets 或本地 `.env`
 
 ## 设计说明

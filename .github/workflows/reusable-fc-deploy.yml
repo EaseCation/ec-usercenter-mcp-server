@@ -67,10 +67,65 @@ on:
         required: false
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
+  quality-gate:
+    name: Require Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for quality workflow result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowId = 'quality-check.yml';
+            const sha = context.sha;
+            const timeoutMs = 20 * 60 * 1000;
+            const intervalMs = 15 * 1000;
+            const startedAt = Date.now();
+
+            while (true) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflowId,
+                head_sha: sha,
+                per_page: 10,
+              });
+
+              const runs = data.workflow_runs ?? [];
+              if (runs.length > 0) {
+                const run = runs[0];
+                core.info(`Quality run #${run.id}: status=${run.status}, conclusion=${run.conclusion}`);
+
+                if (run.status === 'completed') {
+                  if (run.conclusion === 'success') {
+                    core.info('Quality Checks passed. Continue deployment.');
+                    return;
+                  }
+
+                  core.setFailed(`Quality Checks conclusion is '${run.conclusion}'. Deployment blocked.`);
+                  return;
+                }
+              } else {
+                core.info(`No Quality Checks run found for sha ${sha} yet.`);
+              }
+
+              if (Date.now() - startedAt > timeoutMs) {
+                core.setFailed('Timed out waiting for Quality Checks to pass.');
+                return;
+              }
+
+              await new Promise(resolve => setTimeout(resolve, intervalMs));
+            }
+
   deploy:
+    needs: quality-gate
     name: Deploy To FC
     runs-on: ubuntu-latest
     timeout-minutes: 30
