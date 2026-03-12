@@ -83,6 +83,7 @@ jobs:
       MCP_HTTP_CORS_ORIGIN: ${{ inputs.cors_origin }}
       MCP_HTTP_ENABLE_DNS_REBINDING_PROTECTION: ${{ inputs.enable_dns_rebinding_protection }}
       MCP_HTTP_BEARER_TOKEN: ${{ secrets.MCP_HTTP_BEARER_TOKEN }}
+      FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
       EC_ADMIN_JWT_TOKEN: ${{ secrets.EC_ADMIN_JWT_TOKEN }}
       EC_ADMIN_REFRESH_TOKEN: ${{ secrets.EC_ADMIN_REFRESH_TOKEN }}
       EC_USER_JWT_TOKEN: ${{ secrets.EC_USER_JWT_TOKEN }}
@@ -187,15 +188,15 @@ jobs:
           NODE
 
       - name: Notify Success
-        if: success() && secrets.FEISHU_WEBHOOK != ''
+        if: success() && env.FEISHU_WEBHOOK != ''
         run: |
-          curl -X POST "${{ secrets.FEISHU_WEBHOOK }}" \
+          curl -X POST "${FEISHU_WEBHOOK}" \
             -H "Content-Type: application/json" \
             -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"[${{ inputs.notify_title }}] 成功！\n\n仓库：${{ github.repository }}\n分支：${{ github.ref_name }}\n提交：${{ github.event.head_commit.message || github.sha }}\n触发人：${{ github.actor }}\"}}"
 
       - name: Notify Failure
-        if: failure() && secrets.FEISHU_WEBHOOK != ''
+        if: failure() && env.FEISHU_WEBHOOK != ''
         run: |
-          curl -X POST "${{ secrets.FEISHU_WEBHOOK }}" \
+          curl -X POST "${FEISHU_WEBHOOK}" \
             -H "Content-Type: application/json" \
             -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"[${{ inputs.notify_title }}] 失败！\n\n仓库：${{ github.repository }}\n分支：${{ github.ref_name }}\n提交：${{ github.event.head_commit.message || github.sha }}\n触发人：${{ github.actor }}\"}}"
